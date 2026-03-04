@@ -1,0 +1,13 @@
+footage/*
+!footage/README.md
+!footage/smartspaces/
+footage/smartspaces/*
+!footage/smartspaces/README.md
+.venv/
+output/
+__pycache__/
+models/
+data/
+backups/
+.claude/
+.DS_Store
