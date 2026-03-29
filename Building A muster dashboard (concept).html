@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Building A muster dashboard (concept)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3F5F2;--panel:#FFFFFF;--ink:#1C2B39;--muted:#5C6B78;--line:#9AA8B4;--hair:#D5DCE1;
+  --safe:#0B8A4F;--safe-soft:rgba(11,138,79,.10);--warn:#A87300;--alarm:#C2362B;--alarm-soft:rgba(194,54,43,.10);
+  --tag:#1C2B39;--tag-ink:#FFFFFF;--feed:#25313B;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0F1A24;--panel:#15232F;--ink:#E4ECF2;--muted:#93A4B3;--line:#536778;--hair:#22323F;
+  --safe:#2FBF77;--safe-soft:rgba(47,191,119,.12);--warn:#E3B23C;--alarm:#F0645A;--alarm-soft:rgba(240,100,90,.14);
+  --tag:#E4ECF2;--tag-ink:#0F1A24;--feed:#0A1219;}}
+:root[data-theme="dark"]{
+  --paper:#0F1A24;--panel:#15232F;--ink:#E4ECF2;--muted:#93A4B3;--line:#536778;--hair:#22323F;
+  --safe:#2FBF77;--safe-soft:rgba(47,191,119,.12);--warn:#E3B23C;--alarm:#F0645A;--alarm-soft:rgba(240,100,90,.14);
+  --tag:#E4ECF2;--tag-ink:#0F1A24;--feed:#0A1219;}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.5}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--safe);outline-offset:2px}
+.top{display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:end;padding:20px 24px 12px;border-bottom:2px solid var(--ink)}
+.site h1{margin:0;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:34px;line-height:1}
+.site p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.figures{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.fig .n{display:block;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.fig .l{font-size:13px;color:var(--muted)}
+#fig-un.live .n{color:var(--alarm)}
+#fig-un.done .n{color:var(--safe)}
+.mode{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.badge{font-size:13px;font-weight:600;padding:3px 10px;border-radius:3px;background:var(--tag);color:var(--tag-ink)}
+.badge.drill{background:var(--alarm)}
+.badge.done{background:var(--safe)}
+.btn{border:2px solid var(--ink);background:transparent;padding:6px 14px;border-radius:4px;font-weight:600}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.note{margin:0;padding:8px 24px;font-size:13px;color:var(--muted)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;padding:4px 24px 24px}
+.plan-wrap{position:relative;background:var(--panel);border:1px solid var(--hair);border-radius:6px;overflow:hidden}
+#plan{display:block;width:100%;height:auto}
+#world{transform-origin:0 0;transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+.bldg{fill:none;stroke:var(--ink);stroke-width:5}
+.nocam{fill:url(#hatch);stroke:var(--line);stroke-width:1.5}
+.nocam-t{fill:var(--muted);font-size:17px}
+.exit{fill:var(--safe)}
+.exit-t{fill:var(--safe);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:20px}
+.route{fill:none;stroke:var(--safe);stroke-width:3;stroke-dasharray:10 8;opacity:.35;transition:opacity .4s}
+body.drill .route{opacity:1}
+.zone{cursor:pointer;outline:none}
+.zone .r{fill:var(--panel);stroke:var(--ink);stroke-width:2.5;transition:fill .3s,stroke .3s}
+.zone.outdoor .r{fill:var(--safe-soft);stroke:var(--safe);stroke-dasharray:9 6}
+.zone:hover .r,.zone:focus-visible .r{stroke-width:5}
+.zone.occ .r{stroke:var(--alarm);fill:var(--alarm-soft)}
+.zone.clear .r{stroke:var(--safe)}
+.zname{fill:var(--ink);font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:26px}
+.zcam{fill:var(--muted);font-size:16px}
+.tag rect{fill:var(--tag);transition:fill .3s}
+.tag text{fill:var(--tag-ink);font-weight:600;font-size:17px;font-variant-numeric:tabular-nums}
+.zone.occ .tag rect{fill:var(--alarm)}
+.zone.clear .tag rect,.zone.outdoor .tag rect{fill:var(--safe)}
+#mini{position:absolute;top:12px;left:12px;width:190px;background:var(--panel);border:1px solid var(--line);border-radius:4px;opacity:0;pointer-events:none;transition:opacity .3s}
+.zoomed #mini{opacity:1}
+#mini rect{fill:var(--paper);stroke:var(--line);stroke-width:6}
+#mini rect.sel{stroke:var(--ink);stroke-width:12}
+#mini rect.occ{stroke:var(--alarm)}
+#mini text{fill:var(--ink);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:70px}
+.card{position:absolute;right:16px;bottom:16px;width:min(560px,calc(100% - 32px));background:var(--panel);border:2px solid var(--ink);border-radius:6px;padding:14px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.card[hidden]{display:none}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:10px}
+.card-head h2{margin:0;font-family:'Barlow Condensed',sans-serif;font-size:26px;line-height:1.1}
+.card-head span{color:var(--muted);font-size:14px}
+#feed{display:block;width:100%;aspect-ratio:16/9;border-radius:3px;background:var(--feed)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 16px;margin:12px 0 4px}
+.stats div{min-width:0}
+.stats dt{font-size:12px;color:var(--muted)}
+.stats dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}
+.stats dd.warn{color:var(--warn)}
+.card .fine{margin:6px 0 0;font-size:12px;color:var(--muted)}
+.rail h2{margin:4px 0 10px;font-family:'Barlow Condensed',sans-serif;font-size:22px}
+.rail ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.ri{width:100%;display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 12px;text-align:left;background:var(--panel);border:1px solid var(--hair);border-left:5px solid var(--ink);border-radius:0;padding:10px 12px}
+.ri:hover{border-color:var(--line);border-left-color:var(--ink)}
+.ri.sel{border-color:var(--ink)}
+.ri.outdoor{border-left-color:var(--safe)}
+.ri.occ{border-left-color:var(--alarm)}
+.ri.clear{border-left-color:var(--safe)}
+.ri .nm{font-weight:600}
+.ri .cm{font-size:13px;color:var(--muted)}
+.ri .ct{grid-row:1/span 3;grid-column:2;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:36px;line-height:1;font-variant-numeric:tabular-nums}
+.ri .st{font-size:13px;color:var(--muted)}
+.ri .st.warn{color:var(--warn)}.ri .st.alarm{color:var(--alarm)}.ri .st.safe{color:var(--safe)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;padding:8px 14px;border-top:1px solid var(--hair);font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:10px;margin-right:6px;vertical-align:middle;border:2px solid var(--ink)}
+.legend i.o{border-color:var(--safe);border-style:dashed;background:var(--safe-soft)}
+.legend i.n{border-color:var(--line);background:repeating-linear-gradient(45deg,var(--hair) 0 2px,transparent 2px 5px)}
+.legend i.r{border:none;border-top:3px dashed var(--safe);height:0;width:18px}
+@media (max-width:900px){
+  .top{grid-template-columns:1fr;align-items:start}
+  .figures{justify-content:flex-start}
+  .mode{align-items:flex-start;flex-direction:row}
+  .layout{grid-template-columns:1fr;padding:4px 12px 16px}
+  .card{position:static;width:auto;margin:10px;box-shadow:none}
+  #mini{width:120px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+@media (prefers-reduced-motion:no-preference){
+  body.drill .route{animation:march 1s linear infinite}
+  @keyframes march{to{stroke-dashoffset:-36}}
+}
+@media (prefers-reduced-motion:reduce){#world{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="site">
+    <h1>Building A</h1>
+    <p>School site from MEVA footage, <span id="clock"></span></p>
+  </div>
+  <div class="figures" aria-live="polite">
+    <div class="fig"><span class="n" id="f-site">0</span><span class="l">Inside the building</span></div>
+    <div class="fig"><span class="n" id="f-muster">0</span><span class="l">At muster point</span></div>
+    <div class="fig" id="fig-un"><span class="n" id="f-un">0</span><span class="l" id="f-un-l">Unaccounted, no drill running</span></div>
+  </div>
+  <div class="mode">
+    <span id="badge" class="badge">Normal operations</span>
+    <button id="drill" class="btn">Start evacuation drill</button>
+  </div>
+</header>
+<p class="note">Concept with simulated counts. In the prototype each zone's count comes from one camera running the detection pipeline.</p>
+
+<main class="layout">
+  <section class="plan-wrap" id="planWrap" aria-label="Site plan">
+    <svg id="plan" viewBox="0 0 1000 620" role="img" aria-label="Floor plan of Building A with five monitored zones">
+      <defs>
+        <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="10" stroke="var(--hair)" stroke-width="4"/>
+        </pattern>
+      </defs>
+      <g id="world"></g>
+    </svg>
+    <svg id="mini" viewBox="0 0 1000 620" aria-hidden="true"></svg>
+    <div class="card" id="card" hidden>
+      <div class="card-head">
+        <div><h2 id="c-name">Zone</h2><span id="c-cam"></span></div>
+        <button class="btn" id="back">Back to site</button>
+      </div>
+      <canvas id="feed" aria-label="Simulated camera view with detection boxes"></canvas>
+      <dl class="stats">
+        <div><dt>Present now</dt><dd id="s-n">0</dd></div>
+        <div><dt>Mean confidence</dt><dd id="s-conf">0</dd></div>
+        <div><dt>Detection time</dt><dd id="s-ms">0 ms</dd></div>
+        <div><dt>Frame rate</dt><dd id="s-fps">0 fps</dd></div>
+        <div><dt>Resolution</dt><dd>1280 × 720</dd></div>
+        <div><dt>Edge device</dt><dd>Raspberry Pi 5 (planned)</dd></div>
+      </dl>
+      <p class="fine">Simulated view. The prototype shows this camera's real footage with Stage 2 detection boxes.</p>
+    </div>
+    <div class="legend">
+      <span><i></i>Monitored indoor zone</span>
+      <span><i class="o"></i>Outdoor muster point</span>
+      <span><i class="n"></i>No cameras</span>
+      <span><i class="r"></i>Evacuation route</span>
+    </div>
+  </section>
+  <aside class="rail">
+    <h2>Zones</h2>
+    <ul id="rail"></ul>
+  </aside>
+</main>
+
+<script>
+const zones=[
+  {id:'hall',name:'Hall',cam:'G299',x:70,y:70,w:360,h:230,cap:60,count:6,conf:.48,low:true},
+  {id:'lobby',name:'Lobby',cam:'G421',x:450,y:70,w:280,h:230,cap:40,count:4,conf:.81},
+  {id:'corridor',name:'Main corridor',cam:'G423',x:70,y:320,w:660,h:90,cap:25,count:2,conf:.84},
+  {id:'entrance',name:'Entrance',cam:'G420',x:70,y:430,w:260,h:120,cap:20,count:1,conf:.86},
+  {id:'muster',name:'Muster point',cam:'G336',x:800,y:330,w:170,h:170,cap:200,count:0,conf:.77,outdoor:true}
+];
+const Z=Object.fromEntries(zones.map(z=>[z.id,z]));
+const indoor=zones.filter(z=>!z.outdoor);
+const NS='http://www.w3.org/2000/svg';
+const world=document.getElementById('world'),mini=document.getElementById('mini');
+let mode='normal',selected=null,headcount=0,t0=0,elapsed=0,hold=0,timer=null;
+
+function mk(tag,attrs,parent,text){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;parent.appendChild(e);return e;}
+
+function buildPlan(){
+  mk('rect',{x:40,y:40,width:720,height:540,class:'bldg'},world);
+  mk('rect',{x:350,y:430,width:380,height:120,class:'nocam'},world);
+  mk('text',{x:370,y:478,class:'nocam-t'},world,'Toilets and change rooms');
+  mk('text',{x:370,y:502,class:'nocam-t'},world,'No cameras (prohibited area)');
+  mk('path',{d:'M200 586 V606 H885 V502',class:'route'},world);
+  mk('rect',{x:170,y:574,width:60,height:12,class:'exit'},world);
+  mk('text',{x:160,y:604,'text-anchor':'end',class:'exit-t'},world,'Exit');
+  zones.forEach(z=>{
+    const g=mk('g',{class:'zone'+(z.outdoor?' outdoor':''),tabindex:0,role:'button','data-id':z.id,'aria-label':'Open '+z.name},world);
+    mk('rect',{x:z.x,y:z.y,width:z.w,height:z.h,rx:z.outdoor?14:3,class:'r'},g);
+    mk('text',{x:z.x+16,y:z.y+34,class:'zname'},g,z.name);
+    mk('text',{x:z.x+16,y:z.y+56,class:'zcam'},g,'Camera '+z.cam);
+    const narrow=z.w<260;
+    const tx=narrow?z.x+16:z.x+z.w-136, ty=narrow?z.y+z.h-46:z.y+14;
+    const t=mk('g',{class:'tag'},g);
+    mk('rect',{x:tx,y:ty,width:120,height:32,rx:3},t);
+    z.tagText=mk('text',{x:tx+60,y:ty+22,'text-anchor':'middle'},t,'');
+    z.g=g;
+    g.addEventListener('click',()=>open(z.id));
+    g.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open(z.id);}});
+  });
+  zones.forEach(z=>{
+    z.m=mk('rect',{x:z.x,y:z.y,width:z.w,height:z.h,rx:z.outdoor?20:0},mini);
+    z.mt=mk('text',{x:z.x+z.w/2,y:z.y+z.h/2+24,'text-anchor':'middle'},mini,'');
+  });
+}
+
+function buildRail(){
+  const ul=document.getElementById('rail');
+  zones.forEach(z=>{
+    const li=document.createElement('li');
+    const b=document.createElement('button');
+    b.className='ri'+(z.outdoor?' outdoor':'');
+    b.innerHTML=`<span class="nm">${z.name}</span><span class="ct"></span><span class="cm">Camera ${z.cam}${z.outdoor?', outdoor':''}</span><span class="st"></span>`;
+    b.addEventListener('click',()=>open(z.id));
+    li.appendChild(b);ul.appendChild(li);
+    z.ri=b;z.riCt=b.querySelector('.ct');z.riSt=b.querySelector('.st');
+  });
+}
+
+function fmt(s){return Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');}
+
+function render(){
+  const inside=indoor.reduce((a,z)=>a+z.count,0);
+  document.getElementById('f-site').textContent=inside;
+  document.getElementById('f-muster').textContent=Z.muster.count;
+  const fu=document.getElementById('fig-un'),un=document.getElementById('f-un'),ul=document.getElementById('f-un-l');
+  fu.className='fig';
+  if(mode==='normal'){un.textContent='0';ul.textContent='Unaccounted, no drill running';}
+  else{const u=headcount-Z.muster.count;un.textContent=u;
+    if(mode==='drill'){fu.classList.add('live');ul.textContent='Unaccounted, drill at '+fmt(elapsed);}
+    else{fu.classList.add('done');ul.textContent='All '+headcount+' accounted for in '+fmt(elapsed);}}
+  zones.forEach(z=>{
+    let cls='',st='',stc='';
+    if(z.outdoor){
+      z.tagText.textContent='Present: '+z.count;
+      st=mode==='normal'?'Assembly area, empty in normal operations':z.count+' of '+headcount+' mustered';stc=mode==='normal'?'':'safe';
+    }else if(mode==='normal'){
+      z.tagText.textContent='Present: '+z.count;
+      st=z.low?'Far side: low detection confidence':(z.count?'Occupied':'Empty');stc=z.low?'warn':'';
+    }else{
+      if(z.count>0){cls='occ';z.tagText.textContent='Present: '+z.count;st='Still occupied';stc='alarm';}
+      else{cls='clear';z.tagText.textContent='Clear';st='Clear';stc='safe';}
+    }
+    z.g.classList.toggle('occ',cls==='occ');z.g.classList.toggle('clear',cls==='clear');
+    z.ri.classList.toggle('occ',cls==='occ');z.ri.classList.toggle('clear',cls==='clear');
+    z.ri.classList.toggle('sel',selected===z.id);
+    z.riCt.textContent=z.count;z.riSt.textContent=st;z.riSt.className='st '+stc;
+    z.m.setAttribute('class',(selected===z.id?'sel ':'')+(cls==='occ'?'occ':''));
+    z.mt.textContent=z.count;
+  });
+  if(selected){const z=Z[selected];
+    document.getElementById('s-n').textContent=z.count;
+    const c=document.getElementById('s-conf');c.textContent=z.count?z.conf.toFixed(2):'n/a';c.className=z.low?'warn':'';
+  }
+}
+
+function normalTick(){
+  indoor.forEach(z=>{z.count=Math.max(0,Math.min(z.cap,z.count+Math.round(Math.random()*2-1)));});
+  if(indoor.reduce((a,z)=>a+z.count,0)===0)Z.lobby.count=1;
+  render();
+}
+function move(from,to,n){const k=Math.min(from.count,n);from.count-=k;to.count+=k;}
+function drillTick(){
+  elapsed=(performance.now()-t0)/1000;
+  move(Z.entrance,Z.muster,2);
+  move(Z.corridor,Z.entrance,2);
+  move(Z.lobby,Z.corridor,2);
+  if(Z.hall.count<=1&&hold<7&&Z.hall.count===1){hold++;}else move(Z.hall,Z.corridor,2);
+  if(indoor.every(z=>z.count===0)){mode='done';stop();setMode();}
+  render();
+}
+function stop(){clearInterval(timer);timer=null;}
+function setMode(){
+  const b=document.getElementById('badge'),btn=document.getElementById('drill');
+  document.body.classList.toggle('drill',mode==='drill');
+  b.className='badge'+(mode==='drill'?' drill':mode==='done'?' done':'');
+  b.textContent=mode==='normal'?'Normal operations':mode==='drill'?'Evacuation drill':'Drill complete';
+  btn.textContent=mode==='normal'?'Start evacuation drill':'Reset to normal';
+}
+document.getElementById('drill').addEventListener('click',()=>{
+  stop();
+  if(mode==='normal'){
+    mode='drill';headcount=indoor.reduce((a,z)=>a+z.count,0);Z.muster.count=0;t0=performance.now();elapsed=0;hold=0;
+    if(Z.hall.count<2)Z.hall.count=2,headcount=indoor.reduce((a,z)=>a+z.count,0);
+    timer=setInterval(drillTick,900);
+  }else{
+    mode='normal';Z.muster.count=0;Z.hall.count=6;Z.lobby.count=4;Z.corridor.count=2;Z.entrance.count=1;
+    timer=setInterval(normalTick,2500);
+  }
+  setMode();render();
+});
+
+function open(id){
+  const z=Z[id];selected=id;
+  const s=Math.min(3,Math.min(1000/z.w,620/z.h)*0.8);
+  const tx=500-s*(z.x+z.w/2),ty=310-s*(z.y+z.h/2);
+  world.style.transform=`translate(${tx}px,${ty}px) scale(${s})`;
+  document.getElementById('planWrap').classList.add('zoomed');
+  document.getElementById('c-name').textContent=z.name;
+  document.getElementById('c-cam').textContent='Camera '+z.cam+(z.outdoor?', outdoor':', school building');
+  const card=document.getElementById('card');
+  setTimeout(()=>{if(selected===id){card.hidden=false;startFeed();}},matchMedia('(prefers-reduced-motion: reduce)').matches?0:420);
+  render();
+}
+function close(){
+  selected=null;world.style.transform='';
+  document.getElementById('planWrap').classList.remove('zoomed');
+  document.getElementById('card').hidden=true;stopFeed();render();
+}
+document.getElementById('back').addEventListener('click',close);
+addEventListener('keydown',e=>{if(e.key==='Escape'&&selected)close();});
+
+const cv=document.getElementById('feed'),ctx=cv.getContext('2d');
+let boxes=[],raf=null,lastStat=0;
+function startFeed(){boxes=[];if(!raf)raf=requestAnimationFrame(draw);}
+function stopFeed(){cancelAnimationFrame(raf);raf=null;}
+function draw(t){
+  const z=Z[selected];if(!z){raf=null;return;}
+  const dpr=devicePixelRatio||1,W=cv.clientWidth*dpr,H=W*9/16;
+  if(cv.width!==Math.round(W)){cv.width=Math.round(W);cv.height=Math.round(H);}
+  const green='#2FBF77';
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--feed').trim()||'#25313B';
+  ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(255,255,255,.07)';ctx.lineWidth=dpr;
+  const vx=W*.5,vy=H*.28;
+  for(let i=-6;i<=6;i++){ctx.beginPath();ctx.moveTo(vx,vy);ctx.lineTo(vx+i*W*.18,H);ctx.stroke();}
+  for(let k=1;k<6;k++){const y=vy+(H-vy)*(k*k)/36;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  while(boxes.length<z.count)boxes.push({x:Math.random(),y:.15+Math.random()*.8,v:(Math.random()<.5?-1:1)*(.0006+Math.random()*.0012),c:Math.max(.26,Math.min(.95,z.conf+(Math.random()-.5)*.25))});
+  while(boxes.length>z.count)boxes.pop();
+  boxes.sort((a,b)=>a.y-b.y);
+  boxes.forEach(b=>{
+    b.x+=b.v;if(b.x<.05||b.x>.95)b.v*=-1;
+    const fy=vy+(H-vy)*(.25+.7*b.y),bh=H*(.14+.36*b.y),bw=bh*.42,bx=b.x*W-bw/2,by=fy-bh;
+    ctx.fillStyle='rgba(200,215,225,.16)';ctx.fillRect(bx+bw*.2,by+bh*.12,bw*.6,bh*.88);
+    ctx.beginPath();ctx.arc(bx+bw/2,by+bh*.08,bw*.2,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=b.c<.5?'#E3B23C':green;ctx.lineWidth=2*dpr;ctx.strokeRect(bx,by,bw,bh);
+    const lab='person '+b.c.toFixed(2);ctx.font=`600 ${11*dpr}px Barlow, sans-serif`;
+    const tw=ctx.measureText(lab).width+8*dpr;ctx.fillStyle=b.c<.5?'#E3B23C':green;ctx.fillRect(bx,by-15*dpr,tw,15*dpr);
+    ctx.fillStyle='#0A1219';ctx.fillText(lab,bx+4*dpr,by-4*dpr);
+  });
+  ctx.fillStyle='rgba(255,255,255,.75)';ctx.font=`500 ${12*dpr}px Barlow, sans-serif`;
+  ctx.fillText('Simulated view, camera '+z.cam,10*dpr,18*dpr);
+  ctx.fillText(z.count+' detected',10*dpr,H-10*dpr);
+  if(t-lastStat>1000){lastStat=t;
+    document.getElementById('s-ms').textContent=(34+Math.round(Math.random()*8))+' ms';
+    document.getElementById('s-fps').textContent=(23+Math.round(Math.random()*3))+' fps';}
+  raf=requestAnimationFrame(draw);
+}
+
+function tickClock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+buildPlan();buildRail();setMode();render();tickClock();
+setInterval(tickClock,1000);timer=setInterval(normalTick,2500);
+</script>
+</body>
+</html>
