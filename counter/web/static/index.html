@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Site Monitor</title>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="bar" id="bar" hidden>
+  <div class="brand"><span id="brand-site">Site</span><small id="brand-org"></small></div>
+  <nav id="nav">
+    <a href="#/setup" data-r="setup">Setup</a>
+    <a href="#/layout" data-r="layout">Layout</a>
+    <a href="#/cameras" data-r="cameras">Cameras</a>
+    <a href="#/live" data-r="live">Live<span class="live-dot" id="live-dot" hidden></span></a>
+    <a href="#/about" data-r="about">About</a>
+  </nav>
+  <div class="who"><span id="who"></span><button class="link" id="logout">Sign out</button></div>
+</header>
+<main class="view" id="view"></main>
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
